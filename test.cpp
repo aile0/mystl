@@ -5,9 +5,9 @@
 #include "mystl.h"
 
 int main() {
-  // test rb_tree
+    // test rb_tree
 
-  // test rb_tree end
-  std::cout << "hello world" << std::endl;
-  return 0;
+    // test rb_tree end
+    std::cout << "hello world" << std::endl;
+    return 0;
 }
