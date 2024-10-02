@@ -1,9 +1,11 @@
 #pragma once
 
 #include "allocator.h"
+#include "exceptdef.h"
 #include "iterator.h"
 #include "rb_tree_algorithm.h"
 #include "type_traits.h"
+#include "util.h"
 
 namespace mystl {
 // define rb_tree_color type
@@ -335,7 +337,7 @@ class rb_tree {
     size_t node_count;
     Compare key_compare;
 
-    // auxiliary function
+    // auxiliary function  //////////////////////////////////////////////////
     base_ptr& root() const { return header->parent; }
     base_ptr& leftmost() const { return header->left; }
     base_ptr& rightmost() const { return header->right; }
@@ -349,9 +351,33 @@ class rb_tree {
 
     // initial auxiliary function
     void rb_tree_init();
-    void erase_since(base_ptr x);
 
-    // member function
+    // reset rb_tree (for move)
+    void reset();
+
+    // get insert multi position
+    mystl::pair<base_ptr, bool> get_insert_multi_pos(const key_type& key);
+    // get insert unique position
+    mystl::pair<mystl::pair<base_ptr, bool>, bool> get_insert_unique_pos(
+        const key_type& key);
+
+    // inert value at position
+    iterator insert_value_at(base_ptr x, const value_type& value,
+                             bool add_to_left);
+    // insert node at position
+    iterator insert_node_at(base_ptr x, node_ptr node, bool add_to_left);
+
+    // insert multi use hint
+    iterator insert_multi_use_hint(base_ptr hint, key_type key, node_ptr node);
+    // insert unique use hint
+    iterator insert_unique_use_hint(base_ptr hint, key_type key, node_ptr node);
+
+    // copy_tree org to child of ohr_parent
+    base_ptr copy_tree(base_ptr org, base_ptr ohr_parent);
+    // erase subtree
+    void erase_subtree(base_ptr x);
+
+    // member function  /////////////////////////////////////////////////////
     // Construct, Copy, Destroy
     rb_tree() { rb_tree_init(); }
 
@@ -368,7 +394,7 @@ class rb_tree {
     const_iterator begin() const { return leftmost(); }
     iterator end() { return header; }  // use header as end for iterator compare
     const_iterator end() const { return header; }
-
+    // reverse iterator
     reverse_iterator rbegin() { return reverse_iterator(end()); }
     const_reverse_iterator rbegin() const {
         return const_reverse_iterator(end());
@@ -377,7 +403,7 @@ class rb_tree {
     const_reverse_iterator rend() const {
         return const_reverse_iterator(begin());
     }
-
+    // const iterator
     const_iterator cbegin() const { return begin(); }
     const_iterator cend() const { return end(); }
     const_iterator crbegin() const { return rbegin(); }
@@ -388,8 +414,19 @@ class rb_tree {
     size_t size() const { return node_count; }
     size_t max_size() const { return static_case<size_t>(-1); }
 
-    // tree operation
+    // insert
+
+    // erase
     void clear();
+
+    // rb_tree operation
+    // find
+
+    // swap
+    void swap(rb_tree& rhs);
+
+    // global overload
+    // ...
 };
 
 // auxiliary function
@@ -422,6 +459,13 @@ typename rb_tree<T, Compare>::node_ptr rb_tree<T, Compare>::clone_node(
     return clone;
 }
 
+// destroy one node
+template <class T, class Compare>
+void rb_tree<T, Compare>::destroy_node(rb_tree<T, Compare>::base_ptr x) {
+    data_allocator::destroy(&x.get_node_ptr()->value);
+    node_allocator::deallocate(x.get_node_ptr());
+}
+
 // initial auxiliary function
 template <class T, class Compare>
 void rb_tree<T, Compare>::rb_tree_init() {
@@ -433,14 +477,289 @@ void rb_tree<T, Compare>::rb_tree_init() {
     node_count = 0;
 }
 
+// reset rb_tree (for move)
 template <class T, class Compare>
-void rb_tree<T, Compare>::erase_since(base_ptr x) {
-    while (x != nullptr) {
+void reset() {
+    header = nullptr;
+    node_count = 0;
+}
+
+// get insert multi position
+template <class T, class Compare>
+mystl::pair<typename rb_tree<T, Compare>::base_ptr, bool>
+rb_tree<T, Compare>::get_insert_multi_pos(const key_type& key) {
+    auto parent = header;
+    auto cur = root();
+    bool add_to_left = true;
+    while (cur != nullptr) {
+        parent = cur;
+        add_to_left = key_compare(key, cur->get_node_ptr()->value);
+        // left < , right >=
+        cur = add_to_left ? cur->left : cur->right;
+    }
+    return mystl::pair<parent, add_to_left>;
+}
+
+// get insert unique position
+template <class T, class Compare>
+mystl::pair<mystl::pair<typename rb_tree<T, Compare>::base_ptr, bool>, bool>
+rb_tree<T, Compare>::get_insert_unique_pos(const key_type& key) {
+    auto parent = header;
+    auto cur = root();
+    bool add_to_left = true;
+    while (cur != nullptr) {
+        parent = cur;
+        add_to_left = key_compare(key, cur->get_node_ptr()->value);
+        cur = add_to_left ? cur->left : cur->right;
+    }
+    iterator itor = iterator(parent);
+    if (add_to_left) {
+        if (parent == header || itor == begin()) {
+            return mystl::pair(mystl::pair(parent, true), true);
+        } else {
+            --itor;
+        }
+    }
+    if (key_compare(value_traits::get_key(*itor), key)) {
+        return mystl::pair(mystl::pair(parent, add_to_left), true);
+    }
+    return mystl::pair(mystl::pair(parent, add_to_left), false);
+}
+
+// insert value at position
+template <class T, class Compare>
+rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_value_at(
+    base_ptr x, const value_type& value, bool add_to_left) {
+    auto node = create_node(value);
+    auto parent = x;
+    node.parent = parent;
+    auto base_ptr = node.get_base_ptr();
+    if (parent == header) {
+        root() = base_ptr;
+        leftmost() = base_ptr;
+        rightmost() = base_ptr;
+    } else if (add_to_left) {
+        parent->left = base_ptr;
+        if (parent == leftmost()) leftmost() = base_ptr;
+    } else {
+        parent->right = base_ptr;
+        if (parent == rightmost()) rightmost() = base_ptr;
+    }
+    ++node_count;
+    return iterator(node);
+}
+
+// insert node at position
+template <class T, class Compare>
+rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_node_at(
+    base_ptr x, node_ptr node, bool add_to_left) {
+    auto parent = x;
+    node->parent = parent;
+    auto base_ptr = node->get_base_ptr();
+    if (parent == header) {
+        root() = base_ptr;
+        leftmost() = base_ptr;
+        rightmost() = base_ptr;
+    } else if (add_to_left) {
+        parent->left = base_ptr;
+        if (parent == leftmost()) leftmost() = base_ptr;
+    } else {
+        parent->right = base_ptr;
+        if (parent == rightmost()) rightmost() = base_ptr;
+    }
+    ++node_count;
+    return iterator(node);
+}
+
+// insert multi use hint
+template <class T, class Compare>
+rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_multi_use_hint(
+    base_ptr hint, key_type key, node_ptr node) {
+    auto np = hint.node;
+    auto before = iterator(hint);
+    --before;
+    auto bnp = before.node;
+    if (!key_compare(key, value_traits::get_key(*before)) &&
+        !key_compare(value_traits::get_key(*hint), key)) {
+        if (bnp->right == nullptr) {
+            return insert_node_at(bnp, node, false);
+        }
+        if (np->left == nullptr) {
+            return insert_node_at(np, node, true);)
+        }
+    }  // before <= key <=hint
+    auto pos = get_insert_multi_pos(key);
+    return insert_node_at(pos.first, node, pos.second);
+}
+
+// insert unique use hint
+template <class T, class Compare>
+rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_unique_use_hint(
+    base_ptr hint, key_type key, node_ptr node) {
+    auto np = hint.node;
+    auto before = iterator(hint);
+    --before;
+    auto bnp = before.node;
+    if (key_compare(value_traits::get_key(*before), key) &&
+        key_compare(key, value_traits::get_key(*hint))) {
+        if (bnp->right == nullptr) {
+            return insert_node_at(bnp, node, false);
+        }
+        if (np->left == nullptr) {
+            return insert_node_at(np, node, true);
+        }
+    }  // before < key < hint
+    auto pos = get_insert_unique_pos(key);
+    if (!pos.second) {
+        destroy_node(node);
+        return pos.first.first;
+    }
+    return insert_node_at(pos.first.first, node, pos.first.second);
+}
+
+// copy tree org to child of ohr_parent
+template <class T, class Compare>
+rb_tree<T, Compare>::base_ptr rb_tree<T, Compare>::copy_tree(
+    base_ptr org, base_ptr ohr_parent) {
+    if (org == nullptr) return nullptr;
+    auto top = clone_node(org);
+    top->parent = ohr_parent;
+    if (org->right != nullptr) {
+        top->right = copy_tree(org->right, top);
+    }
+    if (org->left != nullptr) {
+        top->left = copy_tree(org->left, top);
+    }
+    return top;
+}
+
+// erase subtree
+template <class T, class Compare>
+void rb_tree<T, Compare>::erase_subtree(base_ptr x) {
+    if (x == nullptr) return;
+    erase_subtree(x->left);
+    erase_subtree(x->right);
+    destroy_node(x);
+}
+
+// member function
+// copy constructor
+template <class T, class Compare>
+rb_tree<T, Compare>::rb_tree(const rb_tree& rhs) {
+    rb_tree_init();
+    if (rhs.node_count != 0) {
+        root() = copy_tree(rhs.root(), header);
+        leftmost() = rb_tree_minimum(root());
+        rightmost() = rb_tree_maximum(root());
+    }
+    node_count = rhs.node_count;
+    key_compare = rhs.key_compare;
+}
+
+// move constructor
+template <class T, class Compare>
+rb_tree<T, Compare>::rb_tree(rb_tree&& rhs) {
+    header = rhs.header;
+    node_count = rhs.node_count;
+    key_compare = rhs.key_compare;
+    rhs.reset();
+}
+
+// copy assignment
+template <class T, class Compare>
+rb_tree<T, Compare>& rb_tree<T, Compare>::operator=(const rb_tree& rhs) {
+    if (this != &rhs) {
+        clear();
+        if (rhs.node_count != 0) {
+            root() = copy_tree(rhs.root(), header);
+            leftmost() = rb_tree_minimum(root());
+            rightmost() = rb_tree_maximum(root());
+        }
+        node_count = rhs.node_count;
+        key_compare = rhs.key_compare;
+    }
+    return *this;
+}
+
+// move assignment
+template <class T, class Compare>
+rb_tree<T, Compare>& rb_tree<T, Compare>::operator=(rb_tree&& rhs) {
+    if (this != &rhs) {
+        clear();
+        header = rhs.header;
+        node_count = rhs.node_count;
+        key_compare = rhs.key_compare;
+        rhs.reset();
+    }
+    return *this;
+}
+
+// erase
+// clear all node
+template <class T, class Compare>
+void clear() {
+    if (node_count != 0) {
+        erase_subtree(root());
+        root() = nullptr;
+        leftmost() = header;
+        rightmost() = header;
+        node_count = 0;
     }
 }
 
-// tree operation
+// rb_tree operation
+// swap
 template <class T, class Compare>
-void rb_tree<T, Compare>::clear() {}
+void rb_tree<T, Compare>::swap(rb_tree& rhs) {
+    if (this != &rhs) {
+        mystl::swap(header, rhs.header);
+        mystl::swap(node_count, rhs.node_count);
+        mystl::swap(key_compare, rhs.key_compare);
+    }
+}
+
+// global overload ...
+// overload swap
+template <class T, class Compare>
+void swap(rb_tree<T, Compare>& lhs, rb_tree<T, Compare>& rhs) {
+    lhs.swap(rhs);
+}
+
+// overload compare operator
+template <class T, class Compare>
+bool operator==(const rb_tree<T, Compare>& lhs,
+                const rb_tree<T, Compare>& rhs) {
+    return lhs.size() == rhs.size() &&
+           mystl::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+template <class T, class Compare>
+bool operator!=(const rb_tree<T, Compare>& lhs,
+                const rb_tree<T, Compare>& rhs) {
+    return !(lhs == rhs);
+}
+
+template <class T, class Compare>
+bool operator<(const rb_tree<T, Compare>& lhs, const rb_tree<T, Compare>& rhs) {
+    return stl::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(),
+                                        rhs.end());
+}
+
+template <class T, class Compare>
+bool operator<=(const rb_tree<T, Compare>& lhs,
+                const rb_tree<T, Compare>& rhs) {
+    return !(rhs < lhs);
+}
+
+template <class T, class Compare>
+bool operator>(const rb_tree<T, Compare>& lhs, const rb_tree<T, Compare>& rhs) {
+    return rhs < lhs;
+}
+
+template <class T, class Compare>
+bool operator>=(const rb_tree<T, Compare>& lhs,
+                const rb_tree<T, Compare>& rhs) {
+    return !(lhs < rhs);
+}
 
 }  // namespace mystl
