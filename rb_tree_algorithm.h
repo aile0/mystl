@@ -157,11 +157,12 @@ void rb_tree_insert_rebalance(Node_ptr x, Node_ptr& root) {
 // x is the node to be deleted
 // return ptr to the node to be deleted
 template <class Node_ptr>
-Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
+Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr root) {
     Node_ptr y = nullptr;
     if (x->left != nullptr && x->right != nullptr) {
         y = rb_tree_next(x);  // find the next node to replace x
-        x->value = y->value;
+        x->get_node_ptr()->value = y->get_node_ptr()->value;
+        // x->value = y->value;
         x = y;
     }
     Node_ptr res = x;  // res(x) is the node to be deleted
@@ -173,7 +174,7 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                 if (rb_tree_is_red(w)) {     // sibling is red
                     rb_tree_set_black(w);
                     rb_tree_set_red(x->parent);
-                    rb_tree_rotate_left(x->parent);
+                    rb_tree_rotate_left(x->parent, root);
                     w = x->parent->right;
                 }
                 if (rb_tree_is_black(w->left) &&
@@ -185,13 +186,13 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                     if (rb_tree_is_black(w->right)) {
                         rb_tree_set_black(w->left);
                         rb_tree_set_red(w);
-                        rb_tree_rotate_right(w);
+                        rb_tree_rotate_right(w, root);
                         w = x->parent->right;
                     }
                     w->color = x->parent->color;
                     rb_tree_set_black(x->parent);
                     rb_tree_set_black(w->right);
-                    rb_tree_rotate_left(x->parent);
+                    rb_tree_rotate_left(x->parent, root);
                     break;
                 }
             } else {  // x is right child
@@ -199,7 +200,7 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                 if (rb_tree_is_red(w)) {
                     rb_tree_set_black(w);
                     rb_tree_set_red(x->parent);
-                    rb_tree_rotate_right(x->parent);
+                    rb_tree_rotate_right(x->parent, root);
                     w = x->parent->left;
                 }
                 if (rb_tree_is_black(w->left) && rb_tree_is_black(w->right)) {
@@ -209,13 +210,13 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                     if (rb_tree_is_black(w->left)) {
                         rb_tree_set_black(w->right);
                         rb_tree_set_red(w);
-                        rb_tree_rotate_left(w);
+                        rb_tree_rotate_left(w, root);
                         w = x->parent->left;
                     }
                     w->color = x->parent->color;
                     rb_tree_set_black(x->parent);
                     rb_tree_set_black(w->left);
-                    rb_tree_rotate_right(x->parent);
+                    rb_tree_rotate_right(x->parent, root);
                     break;
                 }
             }
@@ -235,6 +236,6 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                 x->parent->right = x_child;
             }
         }
-        return res;
     }
+    return res;
 }

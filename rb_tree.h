@@ -704,10 +704,9 @@ typename rb_tree<T, Compare>::base_ptr rb_tree<T, Compare>::copy_tree(
 // erase subtree
 template <class T, class Compare>
 void rb_tree<T, Compare>::erase_subtree(base_ptr x) {
-    if (x == nullptr) return;
-    erase_subtree(x->left);
-    erase_subtree(x->right);
-    destroy_node(x);
+    if (x->left != nullptr) erase_subtree(x->left);
+    if (x->right != nullptr) erase_subtree(x->right);
+    destroy_node(x->get_node_ptr());
 }
 
 // member function
