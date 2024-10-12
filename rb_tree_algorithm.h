@@ -1,6 +1,6 @@
 #pragma once
 
-namespace mystl {
+#include "rb_tree_color.h"
 
 // find the minimum node under x
 template <class Node_ptr>
@@ -15,11 +15,11 @@ Node_ptr rb_tree_maximum(Node_ptr ptr) {
     return ptr;
 }
 /********************************************************** */
-// judge whether x is the root
-template <class Node_ptr>
-bool rb_tree_is_root(Node_ptr x) {
-    return x->parent == nullptr;
-}
+// // judge whether x is the root
+// template <class Node_ptr>
+// bool rb_tree_is_root(Node_ptr x) {
+//     return x->parent == nullptr;
+// }
 // judge whether x is the left child of its parent
 template <class Node_ptr>
 bool rb_tree_is_left_child(Node_ptr x) {
@@ -75,12 +75,12 @@ Node_ptr rb_tree_next(Node_ptr x) {
 /************************************************************ */
 // rotate left
 template <class Node_ptr>
-void rb_tree_rotate_left(Node_ptr x) {
+void rb_tree_rotate_left(Node_ptr x, Node_ptr root) {
     Node_ptr y = x->right;
     x->right = y->left;
     if (y->left != nullptr) y->left->parent = x;
     y->parent = x->parent;
-    if (rb_tree_is_root(x))
+    if (x != root)
         root = y;
     else if (rb_tree_is_left_child(x))
         x->parent->left = y;
@@ -91,12 +91,12 @@ void rb_tree_rotate_left(Node_ptr x) {
 }
 // rotate right
 template <class Node_ptr>
-void rb_tree_rotate_right(Node_ptr x) {
+void rb_tree_rotate_right(Node_ptr x, Node_ptr root) {
     Node_ptr y = x->left;
     x->left = y->right;
     if (y->right != nullptr) y->right->parent = x;
     y->parent = x->parent;
-    if (rb_tree_is_root(x))
+    if (x != root)
         root = y;
     else if (rb_tree_is_left_child(x))
         x->parent->left = y;
@@ -110,7 +110,7 @@ void rb_tree_rotate_right(Node_ptr x) {
 // x already be inserted, now rebalance
 template <class Node_ptr>
 void rb_tree_insert_rebalance(Node_ptr x, Node_ptr& root) {
-    rb_tree_set_red(x);  // red colo
+    rb_tree_set_red(x);  // red color
     while (
         x != root &&
         rb_tree_is_red(x->parent)) {  // current node is red and parent is red
@@ -158,7 +158,7 @@ void rb_tree_insert_rebalance(Node_ptr x, Node_ptr& root) {
 // return ptr to the node to be deleted
 template <class Node_ptr>
 Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
-    auto y = nullptr;
+    Node_ptr y = nullptr;
     if (x->left != nullptr && x->right != nullptr) {
         y = rb_tree_next(x);  // find the next node to replace x
         x->value = y->value;
@@ -238,5 +238,3 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
         return res;
     }
 }
-
-}  // namespace mystl

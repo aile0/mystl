@@ -87,7 +87,7 @@ struct pair {
     // 移动构造函数
     pair(pair &&rhs) = default;
 
-    // outher 1 other 2
+    // other 1 other 2
     template <
         class U1, class U2,
         typename std::enable_if<std::is_constructible<T1, U1>::value &&
