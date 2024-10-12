@@ -227,6 +227,7 @@ class rb_tree_iterator : public rb_tree_iterator_base<T> {
     rb_tree_iterator(base_ptr x) { node = x; }
     rb_tree_iterator(node_ptr x) { node = x; }
     rb_tree_iterator(iterator& x) { node = x.node; }
+    rb_tree_iterator(iterator&& x) { node = x.node; }
     rb_tree_iterator(const_iterator& x) { node = x.node; }
 
     // member function
@@ -574,7 +575,7 @@ rb_tree<T, Compare>::get_insert_unique_pos(const key_type& key) {
     iterator itor = iterator(parent);
     if (add_to_left) {
         if (parent == header || itor == begin()) {
-            return mystl::make_pair(mystl::pair(parent, true), true);
+            return mystl::make_pair(mystl::make_pair(parent, true), true);
         } else {
             --itor;
         }
@@ -582,7 +583,7 @@ rb_tree<T, Compare>::get_insert_unique_pos(const key_type& key) {
     if (key_compare(value_traits::get_key(*itor), key)) {
         return mystl::make_pair(mystl::pair(parent, add_to_left), true);
     }
-    return mystl::make_pair(mystl::pair(parent, add_to_left), false);
+    return mystl::make_pair(mystl::make_pair(parent, add_to_left), false);
 }
 
 // insert value at position
@@ -781,8 +782,11 @@ rb_tree<T, Compare>::emplace_unique(Args&&... args) {
         destroy_node(np);
         return mystl::make_pair(pos.first.first, false);
     }
+    // auto tmp = insert_node_at(pos.first.first, np, pos.first.second);
+    // return mystl::make_pair(tmp, true);
     return mystl::make_pair(
-        insert_node_at(pos.first.first, np, pos.first.second), true);
+        insert_node_at(pos.first.first, np, pos.first.second),
+        true);  // 需要支持移动语义
 }
 
 template <class T, class Compare>
