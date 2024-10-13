@@ -34,12 +34,12 @@ bool rb_tree_is_right_child(Node_ptr x) {
 // judge whether x is red
 template <class Node_ptr>
 bool rb_tree_is_red(Node_ptr x) {
-    return x->color == rb_tree_color_red;
+    return x != nullptr && x->color == rb_tree_color_red;
 }
 // judge whether x is black
 template <class Node_ptr>
 bool rb_tree_is_black(Node_ptr x) {
-    return x->color == rb_tree_color_black;
+    return x == nullptr || x->color == rb_tree_color_black;
 }
 /*********************************************************** */
 // set color val to x
@@ -80,7 +80,7 @@ void rb_tree_rotate_left(Node_ptr x, Node_ptr& root) {
     x->right = y->left;
     if (y->left != nullptr) y->left->parent = x;
     y->parent = x->parent;
-    if (x != root)
+    if (x == root)
         root = y;
     else if (rb_tree_is_left_child(x))
         x->parent->left = y;
@@ -96,7 +96,7 @@ void rb_tree_rotate_right(Node_ptr x, Node_ptr& root) {
     x->left = y->right;
     if (y->right != nullptr) y->right->parent = x;
     y->parent = x->parent;
-    if (x != root)
+    if (x == root)
         root = y;
     else if (rb_tree_is_left_child(x))
         x->parent->left = y;
@@ -161,7 +161,7 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
     Node_ptr y = nullptr;
     if (x->left != nullptr && x->right != nullptr) {
         y = rb_tree_next(x);  // find the next node to replace x
-        x->get_node_ptr()->value = y->get_node_ptr()->value;
+        x->get_node_ptr()->value.second = y->get_node_ptr()->value.second;
         // x->value = y->value;
         x = y;
     }
@@ -221,22 +221,22 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                 }
             }
         }
-        auto x_child = x->left != nullptr ? x->left : x->right;
+        auto x_child = res->left != nullptr ? res->left : res->right;
         if (x_child == nullptr) {
-            if (rb_tree_is_left_child(x)) {
-                x->parent->left = nullptr;
+            if (rb_tree_is_left_child(res)) {
+                res->parent->left = nullptr;
             } else {
-                x->parent->right = nullptr;
+                res->parent->right = nullptr;
             }
         } else {
-            x_child->parent = x->parent;
-            if (rb_tree_is_left_child(x)) {
-                x->parent->left = x_child;
+            x_child->parent = res->parent;
+            if (rb_tree_is_left_child(res)) {
+                res->parent->left = x_child;
             } else {
-                x->parent->right = x_child;
+                res->parent->right = x_child;
             }
         }
-        if (x == root) root = x_child;
+        if (res == root) root = x_child;
     }
     return res;
 }

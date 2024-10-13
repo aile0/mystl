@@ -27,6 +27,9 @@ class allocator {
     static void construct(T *p, const T &value);
     static void construct(T *p, T &&value);
 
+    template <class... Args>
+    static void construct(T *p, Args &&...args);
+
     static void destroy(T *p);
     static void destroy(T *first, T *last);
 
@@ -73,6 +76,12 @@ void allocator<T>::construct(T *p, const T &value) {
 template <typename T>
 void allocator<T>::construct(T *p, T &&value) {
     mystl::construct(p, std::move(value));
+}
+
+template <typename T>
+template <class... Args>
+void allocator<T>::construct(T *p, Args &&...args) {
+    mystl::construct(p, std::forward<Args>(args)...);
 }
 
 template <typename T>

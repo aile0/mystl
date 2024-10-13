@@ -227,7 +227,7 @@ class rb_tree_iterator : public rb_tree_iterator_base<T> {
     rb_tree_iterator(base_ptr x) { node = x; }
     rb_tree_iterator(node_ptr x) { node = x; }
     rb_tree_iterator(iterator& x) { node = x.node; }
-    rb_tree_iterator(iterator&& x) { node = x.node; }
+    // rb_tree_iterator(iterator&& x) { node = x.node; }
     rb_tree_iterator(const_iterator& x) { node = x.node; }
 
     // member function
@@ -345,9 +345,9 @@ class rb_tree {
     Compare key_compare;
 
     // auxiliary function  //////////////////////////////////////////////////
-    base_ptr& root() const { return header->parent; }
-    base_ptr& leftmost() const { return header->left; }
-    base_ptr& rightmost() const { return header->right; }
+    base_ptr& root() { return header->parent; }
+    base_ptr& leftmost() { return header->left; }
+    base_ptr& rightmost() { return header->right; }
 
     // node auxiliary function
     template <class... Args>
@@ -377,10 +377,10 @@ class rb_tree {
     iterator insert_node_at(base_ptr x, node_ptr node, bool add_to_left);
 
     // insert multi use hint
-    iterator insert_multi_use_hint(base_ptr hint, key_type key, node_ptr node);
+    iterator insert_multi_use_hint(iterator hint, key_type key, node_ptr node);
 
     // insert unique use hint
-    iterator insert_unique_use_hint(base_ptr hint, key_type key, node_ptr node);
+    iterator insert_unique_use_hint(iterator hint, key_type key, node_ptr node);
 
     // copy_tree org to child of ohr_parent
     base_ptr copy_tree(base_ptr org, base_ptr ohr_parent);
@@ -390,6 +390,10 @@ class rb_tree {
 
     // member function  /////////////////////////////////////////////////////
    public:
+    // auxiliary function
+    Compare get_key_compare() const { return key_compare; }
+    node_allocator get_node_allocator() const { return node_allocator(); }
+
     // Construct, Copy, Destroy
     rb_tree() { rb_tree_init(); }
 
@@ -553,7 +557,8 @@ rb_tree<T, Compare>::get_insert_multi_pos(const key_type& key) {
     bool add_to_left = true;
     while (cur != nullptr) {
         parent = cur;
-        add_to_left = key_compare(key, cur->get_node_ptr()->value);
+        add_to_left =
+            key_compare(key, value_traits::get_key(cur->get_node_ptr()->value));
         // left < , right >=
         cur = add_to_left ? cur->left : cur->right;
     }
@@ -569,7 +574,8 @@ rb_tree<T, Compare>::get_insert_unique_pos(const key_type& key) {
     bool add_to_left = true;
     while (cur != nullptr) {
         parent = cur;
-        add_to_left = key_compare(key, cur->get_node_ptr()->value);
+        add_to_left =
+            key_compare(key, value_traits::get_key(cur->get_node_ptr()->value));
         cur = add_to_left ? cur->left : cur->right;
     }
     iterator itor = iterator(parent);
@@ -617,6 +623,12 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_node_at(
     auto parent = x;
     node->parent = parent;
     auto base_ptr = node->get_base_ptr();
+    if (x == leftmost() && add_to_left) {
+        leftmost() = base_ptr;
+    }
+    if (x == rightmost() && !add_to_left) {
+        rightmost() = base_ptr;
+    }
     if (parent == header) {
         root() = base_ptr;
         leftmost() = base_ptr;
@@ -636,7 +648,7 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_node_at(
 // insert multi use hint
 template <class T, class Compare>
 typename rb_tree<T, Compare>::iterator
-rb_tree<T, Compare>::insert_multi_use_hint(base_ptr hint, key_type key,
+rb_tree<T, Compare>::insert_multi_use_hint(iterator hint, key_type key,
                                            node_ptr node) {
     auto np = hint.node;
     auto before = iterator(hint);
@@ -658,7 +670,7 @@ rb_tree<T, Compare>::insert_multi_use_hint(base_ptr hint, key_type key,
 // insert unique use hint
 template <class T, class Compare>
 typename rb_tree<T, Compare>::iterator
-rb_tree<T, Compare>::insert_unique_use_hint(base_ptr hint, key_type key,
+rb_tree<T, Compare>::insert_unique_use_hint(iterator hint, key_type key,
                                             node_ptr node) {
     auto np = hint.node;
     auto before = iterator(hint);
@@ -705,7 +717,7 @@ typename rb_tree<T, Compare>::base_ptr rb_tree<T, Compare>::copy_tree(
 // erase subtree
 template <class T, class Compare>
 void rb_tree<T, Compare>::erase_subtree(base_ptr x) {
-    if(x == nullptr) return;
+    if (x == nullptr) return;
     if (x->left != nullptr) erase_subtree(x->left);
     if (x->right != nullptr) erase_subtree(x->right);
     destroy_node(x->get_node_ptr());
@@ -783,11 +795,11 @@ rb_tree<T, Compare>::emplace_unique(Args&&... args) {
         destroy_node(np);
         return mystl::make_pair(pos.first.first, false);
     }
-    // auto tmp = insert_node_at(pos.first.first, np, pos.first.second);
-    // return mystl::make_pair(tmp, true);
-    return mystl::make_pair(
-        insert_node_at(pos.first.first, np, pos.first.second),
-        true);  // 需要支持移动语义
+    auto tmp = insert_node_at(pos.first.first, np, pos.first.second);
+    return mystl::make_pair(tmp, true);
+    // return mystl::make_pair(
+    //     insert_node_at(pos.first.first, np, pos.first.second),
+    //     true);  // 需要支持移动语义
 }
 
 template <class T, class Compare>
@@ -931,8 +943,8 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::erase(
     auto next = rb_tree_next(x);
     if (x == leftmost()) leftmost() = next;
     if (x == rightmost()) rightmost() = rb_tree_previous(x);
-    rb_tree_erase_rebalance(x, root());
-    destroy_node(x);
+    auto res = rb_tree_erase_rebalance(x, root());
+    destroy_node(res);
     --node_count;
     return next;
 }
@@ -988,15 +1000,19 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::find(
     const key_type& key) {
     auto cur = root();
     while (cur != nullptr) {
-        if (!key_compare(cur->get_node_ptr()->value, key) &&
-            !key_compare(key, cur->get_node_ptr()->value)) {
+        if (!key_compare(value_traits::get_key(cur->get_node_ptr()->value),
+                         key) &&
+            !key_compare(key,
+                         value_traits::get_key(cur->get_node_ptr()->value))) {
             return iterator(cur);
-        } else if (key_compare(key, cur->get_node_ptr()->value)) {
+        } else if (key_compare(key, value_traits::get_key(
+                                        cur->get_node_ptr()->value))) {
             cur = cur->left;
         } else {
             cur = cur->right;
         }
     }
+
     return end();
 }
 
@@ -1024,7 +1040,8 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::lower_bound(
     auto cur = root();
     base_ptr y = header;
     while (cur != nullptr) {
-        if (!key_compare(cur->get_node_ptr()->value, key)) {
+        if (!key_compare(value_traits::get_key(cur->get_node_ptr()->value),
+                         key)) {
             y = cur;
             cur = cur->left;
         } else {
