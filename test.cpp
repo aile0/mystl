@@ -36,8 +36,8 @@ int main() {
         std::cout << "Find 30: Fail" << std::endl;
     }
 
-    tree.erase(it1);
-    
+    tree.erase(it1);  // 发生错误，析构问题
+
     tree.clear();
     // // 测试删除操作
     // auto tmp = tree.erase(it1);

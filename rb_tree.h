@@ -628,6 +628,7 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_node_at(
         parent->right = base_ptr;
         if (parent == rightmost()) rightmost() = base_ptr;
     }
+    rb_tree_insert_rebalance(base_ptr, root());
     ++node_count;
     return iterator(node);
 }
@@ -704,6 +705,7 @@ typename rb_tree<T, Compare>::base_ptr rb_tree<T, Compare>::copy_tree(
 // erase subtree
 template <class T, class Compare>
 void rb_tree<T, Compare>::erase_subtree(base_ptr x) {
+    if(x == nullptr) return;
     if (x->left != nullptr) erase_subtree(x->left);
     if (x->right != nullptr) erase_subtree(x->right);
     destroy_node(x->get_node_ptr());

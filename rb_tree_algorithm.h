@@ -75,7 +75,7 @@ Node_ptr rb_tree_next(Node_ptr x) {
 /************************************************************ */
 // rotate left
 template <class Node_ptr>
-void rb_tree_rotate_left(Node_ptr x, Node_ptr root) {
+void rb_tree_rotate_left(Node_ptr x, Node_ptr& root) {
     Node_ptr y = x->right;
     x->right = y->left;
     if (y->left != nullptr) y->left->parent = x;
@@ -91,7 +91,7 @@ void rb_tree_rotate_left(Node_ptr x, Node_ptr root) {
 }
 // rotate right
 template <class Node_ptr>
-void rb_tree_rotate_right(Node_ptr x, Node_ptr root) {
+void rb_tree_rotate_right(Node_ptr x, Node_ptr& root) {
     Node_ptr y = x->left;
     x->left = y->right;
     if (y->right != nullptr) y->right->parent = x;
@@ -124,11 +124,11 @@ void rb_tree_insert_rebalance(Node_ptr x, Node_ptr& root) {
             } else {  // uncle is black
                 if (rb_tree_is_right_child(x)) {
                     x = x->parent;
-                    rb_tree_rotate_left(x);
+                    rb_tree_rotate_left(x, root);
                 }
                 rb_tree_set_black(x->parent);
                 rb_tree_set_red(x->parent->parent);
-                rb_tree_rotate_right(x->parent->parent);
+                rb_tree_rotate_right(x->parent->parent, root);
                 break;
             }
         } else {  // parent is right child
@@ -141,11 +141,11 @@ void rb_tree_insert_rebalance(Node_ptr x, Node_ptr& root) {
             } else {  // uncle is black
                 if (rb_tree_is_left_child(x)) {
                     x = x->parent;
-                    rb_tree_rotate_right(x);
+                    rb_tree_rotate_right(x, root);
                 }
                 rb_tree_set_black(x->parent);
                 rb_tree_set_red(x->parent->parent);
-                rb_tree_rotate_left(x->parent->parent);
+                rb_tree_rotate_left(x->parent->parent, root);
                 break;
             }
         }
@@ -157,7 +157,7 @@ void rb_tree_insert_rebalance(Node_ptr x, Node_ptr& root) {
 // x is the node to be deleted
 // return ptr to the node to be deleted
 template <class Node_ptr>
-Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr root) {
+Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
     Node_ptr y = nullptr;
     if (x->left != nullptr && x->right != nullptr) {
         y = rb_tree_next(x);  // find the next node to replace x
@@ -236,6 +236,7 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr root) {
                 x->parent->right = x_child;
             }
         }
+        if (x == root) root = x_child;
     }
     return res;
 }
