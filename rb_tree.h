@@ -349,6 +349,9 @@ class rb_tree {
     base_ptr& leftmost() { return header->left; }
     base_ptr& rightmost() { return header->right; }
 
+    base_ptr& root() const { return header->parent; }
+    base_ptr& leftmost() const { return header->left; }
+
     // node auxiliary function
     template <class... Args>
     node_ptr create_node(Args&&... args);
@@ -482,6 +485,9 @@ class rb_tree {
     mystl::pair<iterator, iterator> equal_range_unique(const key_type& key);
     mystl::pair<const_iterator, const_iterator> equal_range_unique(
         const key_type& key) const;
+
+    size_type count_multi(const key_type& key);
+    size_type count_unique(const key_type& key);
 
     size_type count_multi(const key_type& key) const;
     size_type count_unique(const key_type& key) const;
@@ -940,10 +946,10 @@ template <class T, class Compare>
 typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::erase(
     iterator hint) {
     auto x = hint.node;
-    auto next = rb_tree_next(x);
-    if (x == leftmost()) leftmost() = next;
-    if (x == rightmost()) rightmost() = rb_tree_previous(x);
     auto res = rb_tree_erase_rebalance(x, root());
+    auto next = rb_tree_next(res);
+    if (res == leftmost()) leftmost() = next;
+    if (res == rightmost()) rightmost() = rb_tree_previous(res);
     destroy_node(res);
     --node_count;
     return next;
@@ -1057,7 +1063,8 @@ typename rb_tree<T, Compare>::const_iterator rb_tree<T, Compare>::lower_bound(
     auto cur = root();
     base_ptr y = header;
     while (cur != nullptr) {
-        if (!key_compare(cur->get_node_ptr()->value, key)) {
+        if (!key_compare(value_traits::get_key(cur->get_node_ptr()->value),
+                         key)) {
             y = cur;
             cur = cur->left;
         } else {
@@ -1074,7 +1081,8 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::upper_bound(
     auto cur = root();
     base_ptr y = header;
     while (cur != nullptr) {
-        if (key_compare(key, cur->get_node_ptr()->value)) {
+        if (key_compare(key,
+                        value_traits::get_key(cur->get_node_ptr()->value))) {
             y = cur;
             cur = cur->left;
         } else {
@@ -1090,7 +1098,8 @@ typename rb_tree<T, Compare>::const_iterator rb_tree<T, Compare>::upper_bound(
     auto cur = root();
     base_ptr y = header;
     while (cur != nullptr) {
-        if (key_compare(key, cur->get_node_ptr()->value)) {
+        if (key_compare(key,
+                        value_traits::get_key(cur->get_node_ptr()->value))) {
             y = cur;
             cur = cur->left;
         } else {
@@ -1105,14 +1114,18 @@ template <class T, class Compare>
 mystl::pair<typename rb_tree<T, Compare>::iterator,
             typename rb_tree<T, Compare>::iterator>
 rb_tree<T, Compare>::equal_range_multi(const key_type& key) {
-    return mystl::pair(lower_bound(key), upper_bound(key));
+    iterator p = lower_bound(key);
+    iterator q = upper_bound(key);
+    return mystl::make_pair(p, q);
 }
 
 template <class T, class Compare>
 mystl::pair<typename rb_tree<T, Compare>::const_iterator,
             typename rb_tree<T, Compare>::const_iterator>
 rb_tree<T, Compare>::equal_range_multi(const key_type& key) const {
-    return mystl::pair(lower_bound(key), upper_bound(key));
+    const_iterator p = lower_bound(key);
+    const_iterator q = upper_bound(key);
+    return mystl::make_pair(p, q);
 }
 
 // equal range unique
@@ -1122,10 +1135,10 @@ mystl::pair<typename rb_tree<T, Compare>::iterator,
 rb_tree<T, Compare>::equal_range_unique(const key_type& key) {
     iterator p = find(key);
     if (p == end()) {
-        return mystl::pair(p, p);
+        return mystl::make_pair(p, p);
     }
     auto q = p;
-    return mystl::pair(p, ++q);
+    return mystl::make_pair(p, ++q);
 }
 
 template <class T, class Compare>
@@ -1140,7 +1153,21 @@ rb_tree<T, Compare>::equal_range_unique(const key_type& key) const {
     return mystl::pair(p, ++q);
 }
 
-// count multi
+// count
+template <class T, class Compare>
+typename rb_tree<T, Compare>::size_type rb_tree<T, Compare>::count_multi(
+    const key_type& key) {
+    auto p = equal_range_multi(key);
+    return mystl::distance(p.first, p.second);
+}
+
+template <class T, class Compare>
+typename rb_tree<T, Compare>::size_type rb_tree<T, Compare>::count_unique(
+    const key_type& key) {
+    auto p = find(key);
+    return p == end() ? 0 : 1;
+}
+
 template <class T, class Compare>
 typename rb_tree<T, Compare>::size_type rb_tree<T, Compare>::count_multi(
     const key_type& key) const {
@@ -1148,7 +1175,6 @@ typename rb_tree<T, Compare>::size_type rb_tree<T, Compare>::count_multi(
     return mystl::distance(p.first, p.second);
 }
 
-// count unique
 template <class T, class Compare>
 typename rb_tree<T, Compare>::size_type rb_tree<T, Compare>::count_unique(
     const key_type& key) const {

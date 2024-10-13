@@ -221,22 +221,22 @@ Node_ptr rb_tree_erase_rebalance(Node_ptr x, Node_ptr& root) {
                 }
             }
         }
-        auto x_child = res->left != nullptr ? res->left : res->right;
-        if (x_child == nullptr) {
-            if (rb_tree_is_left_child(res)) {
-                res->parent->left = nullptr;
-            } else {
-                res->parent->right = nullptr;
-            }
-        } else {
-            x_child->parent = res->parent;
-            if (rb_tree_is_left_child(res)) {
-                res->parent->left = x_child;
-            } else {
-                res->parent->right = x_child;
-            }
-        }
-        if (res == root) root = x_child;
     }
+    auto x_child = res->left != nullptr ? res->left : res->right;
+    if (x_child == nullptr) {
+        if (rb_tree_is_left_child(res)) {
+            res->parent->left = nullptr;
+        } else {
+            res->parent->right = nullptr;
+        }
+    } else {
+        x_child->parent = res->parent;
+        if (rb_tree_is_left_child(res)) {
+            res->parent->left = x_child;
+        } else {
+            res->parent->right = x_child;
+        }
+    }
+    if (res == root) root = x_child;
     return res;
 }
