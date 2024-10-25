@@ -411,6 +411,7 @@ void list<T, Alloc>::sort() {
     swap(*this, count[fill - 1]);
 }
 
+// 默认有序
 template <typename T, typename Alloc>
 void list<T, Alloc>::merge(list<T> &other_list) {
     if (other_list.empty()) return;

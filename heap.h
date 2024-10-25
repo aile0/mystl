@@ -66,7 +66,7 @@ void sink(RandomAccessIterator first, RandomAccessIterator last) {
     sink_aux(first, end, index, value);
 }
 
-// 将可排序容器中元素递增排序
+// 将序列容器中元素递增排序
 template <typename RandomAccessIterator>
 void sort_heap(RandomAccessIterator first, RandomAccessIterator last) {
     for (; last - first > 1; --last) {
