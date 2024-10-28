@@ -522,7 +522,7 @@ typename rb_tree<T, Compare>::node_ptr rb_tree<T, Compare>::create_node(
 template <class T, class Compare>
 typename rb_tree<T, Compare>::node_ptr rb_tree<T, Compare>::clone_node(
     rb_tree<T, Compare>::base_ptr x) {
-    auto clone = create_node(x.get_node_ptr()->value);
+    auto clone = create_node(x->get_node_ptr()->value);
     clone->color = x->color;
     clone->left = nullptr;
     clone->right = nullptr;
@@ -946,13 +946,38 @@ template <class T, class Compare>
 typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::erase(
     iterator hint) {
     auto x = hint.node;
+
+    decltype(x) y = nullptr;
+    decltype(x) tmp = rb_tree_next(x);
+    if (x->left != nullptr && x->right != nullptr) {
+        y = rb_tree_next(x);  // find the next node to replace x
+        tmp = clone_node(y->get_node_ptr());
+        tmp->parent = x->parent;
+        if (rb_tree_is_left_child(x)) {
+            x->parent->left = tmp;
+        } else if (rb_tree_is_right_child(x)) {
+            x->parent->right = tmp;
+        } else {
+            root() = tmp;
+        }
+        if (x->left != nullptr) {
+            tmp->left = x->left;
+            x->left->parent = tmp;
+        }
+        if (x->right != nullptr) {
+            tmp->right = x->right;
+            x->right->parent = tmp;
+        }
+        destroy_node(x->get_node_ptr());
+        x = y;
+    }
+
     auto res = rb_tree_erase_rebalance(x, root());
     auto next = rb_tree_next(res);
-    if (res == leftmost()) leftmost() = next;
     if (res == rightmost()) rightmost() = rb_tree_previous(res);
     destroy_node(res);
     --node_count;
-    return next;
+    return tmp;
 }
 
 // erase multi
@@ -981,7 +1006,8 @@ void rb_tree<T, Compare>::erase(iterator first, iterator last) {
     if (first == begin() && last == end()) {
         clear();
     } else {
-        while (first != last) {
+        auto n = mystl::distance(first, last);
+        while (n--) {
             first = erase(first);
         }
     }
@@ -1083,13 +1109,13 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::upper_bound(
     while (cur != nullptr) {
         if (key_compare(key,
                         value_traits::get_key(cur->get_node_ptr()->value))) {
-            y = cur;
             cur = cur->left;
         } else {
+            y = cur;
             cur = cur->right;
         }
     }
-    return iterator(y);
+    return iterator(rb_tree_next(y));
 }
 
 template <class T, class Compare>
@@ -1100,13 +1126,13 @@ typename rb_tree<T, Compare>::const_iterator rb_tree<T, Compare>::upper_bound(
     while (cur != nullptr) {
         if (key_compare(key,
                         value_traits::get_key(cur->get_node_ptr()->value))) {
-            y = cur;
             cur = cur->left;
         } else {
+            y = cur;
             cur = cur->right;
         }
     }
-    return const_iterator(y);
+    return const_iterator(rb_tree_next(y));
 }
 
 // equal range multi

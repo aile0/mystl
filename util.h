@@ -96,13 +96,13 @@ struct pair {
     }
 
     // implicit constructiable for other type
-    template <class Other1, class Other2,
-              typename std::enable_if<
-                  std::is_constructible<T1, Other1>::value &&
-                      std::is_constructible<T2, Other2>::value &&
-                      std::is_convertible<Other1 &&, T1>::value &&
-                      std::is_convertible<Other2 &&, T2>::value,
-                  int>::type = 0>
+    template <
+        class Other1, class Other2,
+        typename std::enable_if<std::is_constructible<T1, Other1>::value &&
+                                    std::is_constructible<T2, Other2>::value &&
+                                    std::is_convertible<Other1 &&, T1>::value &&
+                                    std::is_convertible<Other2 &&, T2>::value,
+                                int>::type = 0>
     constexpr pair(Other1 &&a, Other2 &&b)
         : first(mystl::forward<Other1>(a)), second(mystl::forward<Other2>(b)) {}
 
